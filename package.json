@@ -23,7 +23,7 @@
     "@actions/github": "5.0.0"
   },
   "devDependencies": {
-    "node-fetch": "2.6.1",
+    "node-fetch": "2.6.7",
     "prettier": "2.5.1"
   }
 }
