@@ -5,6 +5,7 @@ This action will help you upload an Android `.apk` file to Amazon AppStore. All 
 ## Prerequisites
 
 To set up one-time API access, first create a security profile in the Developer Console and then associate the security profile with the Submission API. Both steps can be taken from the “API Access” tab under “Apps and Services”. Once the association is completed, you can use the secure ID and client ID to request Login with Amazon access token. This token is used during API calls.
+
 The app must be live on Amazon AppStore. If not you will receive the error `Cannot create a new 'edit' for the app in it's current state.` when the action tries to create the Edit.
 
 ## Inputs
