@@ -1,11 +1,22 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Upload Android Release to Amazon Appstore'
+description: "An action to upload a signed Android release (.apk) to the Amazon Appstore"
+author: 'galonga'
+branding:
+  icon: 'truck'
+  color: 'orange'
 inputs:
-  milliseconds: # change this
+  clientId:
+    description: "The client ID of the Amazon AppStore application."
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+  clientSecret:
+    description: "The client secret of the Amazon AppStore application."
+    required: true
+  appId:
+    description: "Amazon Appstore app id of the application you are uploading."
+    required: true
+  releaseFile:
+    description: "The Android release file to upload (.apk)"
+    required: true
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: 'node12'
+  main: 'lib/index.js'
