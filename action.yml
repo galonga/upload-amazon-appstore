@@ -18,5 +18,5 @@ inputs:
     description: "The Android release file to upload (.apk)"
     required: true
 runs:
-  using: 'node12'
-  main: 'src/index.js'
+  using: 'node16'
+  main: 'dist/index.js'
