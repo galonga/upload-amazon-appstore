@@ -56,7 +56,6 @@ function run() {
                     throw Error(`[Error] ${response.statusText}`);
                 return response;
             }
-            eTag = "";
             core.info('Getting Authentication Token');
             const authTokenResponse = yield (0, node_fetch_1.default)('https://api.amazon.com/auth/o2/token', {
                 method: 'POST',
@@ -121,6 +120,7 @@ function run() {
                 .catch((error) => {
                 core.setFailed(error.message);
             });
+            eTag = "";
             yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}`, {
                 method: 'GET',
                 headers: {
