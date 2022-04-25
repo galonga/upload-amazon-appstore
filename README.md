@@ -29,7 +29,7 @@ The app must be live on Amazon AppStore. If not you will receive the error `Cann
 ## Sample usage
 
 ```yaml
-uses: galonga/upload-amazon-appstore@v0.9.0
+uses: galonga/upload-amazon-appstore@v1.0.0
   with:
     clientId: ${{secrets.AMAZON_APPSTORE_CLIENT_ID}}
     clientSecret: ${{secrets.AMAZON_APPSTORE_CLIENT_SECRET}}
