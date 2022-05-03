@@ -1,6 +1,6 @@
 # Upload Android apk release to Amazon Appstore
 
-This GitHub Action will help you upload an Android `.apk` file to Amazon AppStore using Amazon Appstore API.
+This GitHub Action will help you upload an Android `.apk` file to Amazon AppStore using API Access token.
 
 ## Prerequirement
 
