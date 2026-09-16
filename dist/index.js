@@ -35958,6 +35958,11 @@ exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const node_fetch_1 = __importDefault(__nccwpck_require__(9070));
+function handleErrors(response) {
+    if (!response.ok)
+        throw Error(`[Error] ${response.statusText}`);
+    return response;
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -35966,11 +35971,11 @@ function run() {
             const appId = core.getInput('appId');
             const apkFile = core.getInput('releaseFile');
             const baseUrl = 'https://developer.amazon.com/api/appstore';
-            let editId, apkId, eTag;
-            function handleErrors(response) {
-                if (!response.ok)
-                    throw Error(`[Error] ${response.statusText}`);
-                return response;
+            let editId;
+            let apkId;
+            let eTag = '';
+            if (!fs_1.default.existsSync(apkFile)) {
+                throw Error(`releaseFile not found at ${apkFile}`);
             }
             core.info('Getting Authentication Token');
             const authTokenResponse = yield (0, node_fetch_1.default)('https://api.amazon.com/auth/o2/token', {
@@ -36024,31 +36029,49 @@ function run() {
                     apkId = apk.id;
                 }
             });
-            eTag = "";
-            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: authHeader,
-                },
-            })
-                .then(handleErrors)
-                .then((response) => {
-                eTag = response.headers.get('etag');
-            });
-            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}/replace`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/vnd.android.package-archive',
-                    Authorization: authHeader,
-                    'If-Match': eTag,
-                },
-                body: fs_1.default.createReadStream(apkFile),
-            })
-                .then(handleErrors)
-                .then(() => {
-                core.info('Successfully uploaded apk');
-            });
+            if (apkId) {
+                core.info('Existing apk found, replacing it');
+                yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: authHeader,
+                    },
+                })
+                    .then(handleErrors)
+                    .then((response) => {
+                    var _a;
+                    eTag = (_a = response.headers.get('etag')) !== null && _a !== void 0 ? _a : '';
+                });
+                yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}/replace`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/vnd.android.package-archive',
+                        Authorization: authHeader,
+                        'If-Match': eTag,
+                    },
+                    body: fs_1.default.createReadStream(apkFile),
+                })
+                    .then(handleErrors)
+                    .then(() => {
+                    core.info('Successfully uploaded apk');
+                });
+            }
+            else {
+                core.info('No existing apk found, uploading a new one');
+                yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/vnd.android.package-archive',
+                        Authorization: authHeader,
+                    },
+                    body: fs_1.default.createReadStream(apkFile),
+                })
+                    .then(handleErrors)
+                    .then(() => {
+                    core.info('Successfully uploaded apk');
+                });
+            }
         }
         catch (error) {
             core.setFailed(`[Error] There was an error with the action: ${error}`);

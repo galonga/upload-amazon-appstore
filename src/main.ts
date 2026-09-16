@@ -1,110 +1,134 @@
 import * as core from '@actions/core'
-import fs from "fs"
+import fs from 'fs'
 import fetch, {Response} from 'node-fetch'
 
+function handleErrors(response: Response): Response {
+  if (!response.ok) throw Error(`[Error] ${response.statusText}`)
+  return response
+}
+
 export async function run(): Promise<void> {
-    try {
-        const clientId = core.getInput('clientId')
-        const clientSecret = core.getInput('clientSecret')
-        const appId = core.getInput('appId')
-        const apkFile = core.getInput('releaseFile')
-        const baseUrl = 'https://developer.amazon.com/api/appstore'
-        let editId, apkId, eTag
+  try {
+    const clientId = core.getInput('clientId')
+    const clientSecret = core.getInput('clientSecret')
+    const appId = core.getInput('appId')
+    const apkFile = core.getInput('releaseFile')
+    const baseUrl = 'https://developer.amazon.com/api/appstore'
+    let editId
+    let apkId
+    let eTag = ''
 
-        function handleErrors(response: Response): Response {
-            if (!response.ok) throw Error(`[Error] ${response.statusText}`)
-            return response
-        }
-
-        core.info('Getting Authentication Token')
-
-        const authTokenResponse = await fetch('https://api.amazon.com/auth/o2/token', {
-            method: 'POST',
-            body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}&scope=appstore::apps:readwrite`,
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        })
-            .then(handleErrors)
-            .then((response) => response.json() as Promise<any>)
-
-        const authHeader = `Bearer ${authTokenResponse.access_token}`
-
-        core.info('Checking if an open Edit exists')
-
-        const getActiveEditResponse = await fetch(`${baseUrl}/v1/applications/${appId}/edits`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: authHeader,
-            },
-        })
-            .then(handleErrors)
-            .then((response) => response.json() as Promise<any>)
-
-        if (JSON.stringify(getActiveEditResponse) === '{}') {
-            core.info('No active edit found, creating new one')
-
-            const createEditResponse = await fetch(`${baseUrl}/v1/applications/${appId}/edits`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: authHeader,
-                },
-            })
-                .then(handleErrors)
-                .then((response) => response.json() as Promise<any>)
-
-            core.info('Creating new Edit')
-            editId = createEditResponse.id
-        } else {
-            core.info('Open edit found')
-            editId = getActiveEditResponse.id
-        }
-
-        await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: authHeader,
-            },
-        })
-            .then(handleErrors)
-            .then((response) => response.json() as Promise<any>)
-            .then((data) => {
-                for (const apk of data) {
-                    core.info(`Found apk with version code ${apk.versionCode} - id ${apk.id} - ${apk.name}`)
-                    apkId = apk.id
-                }
-            })
-
-
-        eTag = ""
-
-        await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: authHeader,
-            },
-        })
-            .then(handleErrors)
-            .then((response) => {
-                eTag = response.headers.get('etag')
-            })
-
-        await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}/replace`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/vnd.android.package-archive',
-                Authorization: authHeader,
-                'If-Match': eTag,
-            },
-            body: fs.createReadStream(apkFile),
-        })
-            .then(handleErrors)
-            .then(() => {
-                core.info('Successfully uploaded apk')
-            })
-    } catch (error) {
-        core.setFailed(`[Error] There was an error with the action: ${error}`)
+    if (!fs.existsSync(apkFile)) {
+      throw Error(`releaseFile not found at ${apkFile}`)
     }
+
+    core.info('Getting Authentication Token')
+
+    const authTokenResponse = await fetch('https://api.amazon.com/auth/o2/token', {
+      method: 'POST',
+      body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(
+        clientSecret,
+      )}&scope=appstore::apps:readwrite`,
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    })
+      .then(handleErrors)
+      .then((response) => response.json() as Promise<any>)
+
+    const authHeader = `Bearer ${authTokenResponse.access_token}`
+
+    core.info('Checking if an open Edit exists')
+
+    const getActiveEditResponse = await fetch(`${baseUrl}/v1/applications/${appId}/edits`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+    })
+      .then(handleErrors)
+      .then((response) => response.json() as Promise<any>)
+
+    if (JSON.stringify(getActiveEditResponse) === '{}') {
+      core.info('No active edit found, creating new one')
+
+      const createEditResponse = await fetch(`${baseUrl}/v1/applications/${appId}/edits`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+      })
+        .then(handleErrors)
+        .then((response) => response.json() as Promise<any>)
+
+      core.info('Creating new Edit')
+      editId = createEditResponse.id
+    } else {
+      core.info('Open edit found')
+      editId = getActiveEditResponse.id
+    }
+
+    await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+    })
+      .then(handleErrors)
+      .then((response) => response.json() as Promise<any>)
+      .then((data) => {
+        for (const apk of data) {
+          core.info(`Found apk with version code ${apk.versionCode} - id ${apk.id} - ${apk.name}`)
+          apkId = apk.id
+        }
+      })
+
+    if (apkId) {
+      core.info('Existing apk found, replacing it')
+
+      await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+      })
+        .then(handleErrors)
+        .then((response) => {
+          eTag = response.headers.get('etag') ?? ''
+        })
+
+      await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}/replace`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/vnd.android.package-archive',
+          Authorization: authHeader,
+          'If-Match': eTag,
+        },
+        body: fs.createReadStream(apkFile),
+      })
+        .then(handleErrors)
+        .then(() => {
+          core.info('Successfully uploaded apk')
+        })
+    } else {
+      core.info('No existing apk found, uploading a new one')
+
+      await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/vnd.android.package-archive',
+          Authorization: authHeader,
+        },
+        body: fs.createReadStream(apkFile),
+      })
+        .then(handleErrors)
+        .then(() => {
+          core.info('Successfully uploaded apk')
+        })
+    }
+  } catch (error) {
+    core.setFailed(`[Error] There was an error with the action: ${error}`)
+  }
 }
