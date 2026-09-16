@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import fs from "fs"
 import fetch, {Response} from 'node-fetch'
 
-async function run() {
+export async function run(): Promise<void> {
     try {
         const clientId = core.getInput('clientId')
         const clientSecret = core.getInput('clientSecret')
@@ -108,5 +108,3 @@ async function run() {
         core.setFailed(`[Error] There was an error with the action: ${error}`)
     }
 }
-
-run();

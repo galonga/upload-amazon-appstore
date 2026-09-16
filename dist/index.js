@@ -1,152 +1,6 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 3109:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __importStar(__nccwpck_require__(2186));
-const fs_1 = __importDefault(__nccwpck_require__(7147));
-const node_fetch_1 = __importDefault(__nccwpck_require__(9070));
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const clientId = core.getInput('clientId');
-            const clientSecret = core.getInput('clientSecret');
-            const appId = core.getInput('appId');
-            const apkFile = core.getInput('releaseFile');
-            const baseUrl = 'https://developer.amazon.com/api/appstore';
-            let editId, apkId, eTag;
-            function handleErrors(response) {
-                if (!response.ok)
-                    throw Error(`[Error] ${response.statusText}`);
-                return response;
-            }
-            core.info('Getting Authentication Token');
-            const authTokenResponse = yield (0, node_fetch_1.default)('https://api.amazon.com/auth/o2/token', {
-                method: 'POST',
-                body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}&scope=appstore::apps:readwrite`,
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            })
-                .then(handleErrors)
-                .then((response) => response.json());
-            const authHeader = `Bearer ${authTokenResponse.access_token}`;
-            core.info('Checking if an open Edit exists');
-            const getActiveEditResponse = yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: authHeader,
-                },
-            })
-                .then(handleErrors)
-                .then((response) => response.json());
-            if (JSON.stringify(getActiveEditResponse) === '{}') {
-                core.info('No active edit found, creating new one');
-                const createEditResponse = yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: authHeader,
-                    },
-                })
-                    .then(handleErrors)
-                    .then((response) => response.json());
-                core.info('Creating new Edit');
-                editId = createEditResponse.id;
-            }
-            else {
-                core.info('Open edit found');
-                editId = getActiveEditResponse.id;
-            }
-            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: authHeader,
-                },
-            })
-                .then(handleErrors)
-                .then((response) => response.json())
-                .then((data) => {
-                for (const apk of data) {
-                    core.info(`Found apk with version code ${apk.versionCode} - id ${apk.id} - ${apk.name}`);
-                    apkId = apk.id;
-                }
-            });
-            eTag = "";
-            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: authHeader,
-                },
-            })
-                .then(handleErrors)
-                .then((response) => {
-                eTag = response.headers.get('etag');
-            });
-            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}/replace`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/vnd.android.package-archive',
-                    Authorization: authHeader,
-                    'If-Match': eTag,
-                },
-                body: fs_1.default.createReadStream(apkFile),
-            })
-                .then(handleErrors)
-                .then(() => {
-                core.info('Successfully uploaded apk');
-            });
-        }
-        catch (error) {
-            core.setFailed(`[Error] There was an error with the action: ${error}`);
-        }
-    });
-}
-run();
-
-
-/***/ }),
-
 /***/ 7351:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -36059,6 +35913,153 @@ module.exports = {
 
 /***/ }),
 
+/***/ 399:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.run = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const fs_1 = __importDefault(__nccwpck_require__(7147));
+const node_fetch_1 = __importDefault(__nccwpck_require__(9070));
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const clientId = core.getInput('clientId');
+            const clientSecret = core.getInput('clientSecret');
+            const appId = core.getInput('appId');
+            const apkFile = core.getInput('releaseFile');
+            const baseUrl = 'https://developer.amazon.com/api/appstore';
+            let editId, apkId, eTag;
+            function handleErrors(response) {
+                if (!response.ok)
+                    throw Error(`[Error] ${response.statusText}`);
+                return response;
+            }
+            core.info('Getting Authentication Token');
+            const authTokenResponse = yield (0, node_fetch_1.default)('https://api.amazon.com/auth/o2/token', {
+                method: 'POST',
+                body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}&scope=appstore::apps:readwrite`,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            })
+                .then(handleErrors)
+                .then((response) => response.json());
+            const authHeader = `Bearer ${authTokenResponse.access_token}`;
+            core.info('Checking if an open Edit exists');
+            const getActiveEditResponse = yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: authHeader,
+                },
+            })
+                .then(handleErrors)
+                .then((response) => response.json());
+            if (JSON.stringify(getActiveEditResponse) === '{}') {
+                core.info('No active edit found, creating new one');
+                const createEditResponse = yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: authHeader,
+                    },
+                })
+                    .then(handleErrors)
+                    .then((response) => response.json());
+                core.info('Creating new Edit');
+                editId = createEditResponse.id;
+            }
+            else {
+                core.info('Open edit found');
+                editId = getActiveEditResponse.id;
+            }
+            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: authHeader,
+                },
+            })
+                .then(handleErrors)
+                .then((response) => response.json())
+                .then((data) => {
+                for (const apk of data) {
+                    core.info(`Found apk with version code ${apk.versionCode} - id ${apk.id} - ${apk.name}`);
+                    apkId = apk.id;
+                }
+            });
+            eTag = "";
+            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: authHeader,
+                },
+            })
+                .then(handleErrors)
+                .then((response) => {
+                eTag = response.headers.get('etag');
+            });
+            yield (0, node_fetch_1.default)(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}/replace`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/vnd.android.package-archive',
+                    Authorization: authHeader,
+                    'If-Match': eTag,
+                },
+                body: fs_1.default.createReadStream(apkFile),
+            })
+                .then(handleErrors)
+                .then(() => {
+                core.info('Successfully uploaded apk');
+            });
+        }
+        catch (error) {
+            core.setFailed(`[Error] There was an error with the action: ${error}`);
+        }
+    });
+}
+exports.run = run;
+
+
+/***/ }),
+
 /***/ 9491:
 /***/ ((module) => {
 
@@ -39249,13 +39250,19 @@ function fixResponseChunkedTransferBadEnding(request, errorCallback) {
 /******/ 	})();
 /******/ 	
 /************************************************************************/
-/******/ 	
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(3109);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be in strict mode.
+(() => {
+"use strict";
+var exports = __webpack_exports__;
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const main_1 = __nccwpck_require__(399);
+(0, main_1.run)();
+
+})();
+
+module.exports = __webpack_exports__;
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map
