@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import fs from "fs"
-import fetch from 'node-fetch'
+import fetch, {Response} from 'node-fetch'
 
 async function run() {
     try {
@@ -11,8 +11,7 @@ async function run() {
         const baseUrl = 'https://developer.amazon.com/api/appstore'
         let editId, apkId, eTag
 
-        // @ts-ignore
-        function handleErrors(response) {
+        function handleErrors(response: Response): Response {
             if (!response.ok) throw Error(`[Error] ${response.statusText}`)
             return response
         }
@@ -21,14 +20,11 @@ async function run() {
 
         const authTokenResponse = await fetch('https://api.amazon.com/auth/o2/token', {
             method: 'POST',
-            body: `grant_type=client_credentials&client_id=${clientId}&client_secret=${clientSecret}&scope=appstore::apps:readwrite`,
+            body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}&scope=appstore::apps:readwrite`,
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         })
             .then(handleErrors)
-            .then((response) => response.json())
-            .catch((error) => {
-                core.setFailed(error.message)
-            })
+            .then((response) => response.json() as Promise<any>)
 
         const authHeader = `Bearer ${authTokenResponse.access_token}`
 
@@ -42,10 +38,7 @@ async function run() {
             },
         })
             .then(handleErrors)
-            .then((response) => response.json())
-            .catch((error) => {
-                core.setFailed(error.message)
-            })
+            .then((response) => response.json() as Promise<any>)
 
         if (JSON.stringify(getActiveEditResponse) === '{}') {
             core.info('No active edit found, creating new one')
@@ -58,10 +51,7 @@ async function run() {
                 },
             })
                 .then(handleErrors)
-                .then((response) => response.json())
-                .catch((error) => {
-                    core.setFailed(error.message)
-                })
+                .then((response) => response.json() as Promise<any>)
 
             core.info('Creating new Edit')
             editId = createEditResponse.id
@@ -78,15 +68,12 @@ async function run() {
             },
         })
             .then(handleErrors)
-            .then((response) => response.json())
+            .then((response) => response.json() as Promise<any>)
             .then((data) => {
                 for (const apk of data) {
                     core.info(`Found apk with version code ${apk.versionCode} - id ${apk.id} - ${apk.name}`)
                     apkId = apk.id
                 }
-            })
-            .catch((error) => {
-                core.setFailed(error.message)
             })
 
 
@@ -103,9 +90,6 @@ async function run() {
             .then((response) => {
                 eTag = response.headers.get('etag')
             })
-            .catch((error) => {
-                core.setFailed(error.message)
-            })
 
         await fetch(`${baseUrl}/v1/applications/${appId}/edits/${editId}/apks/${apkId}/replace`, {
             method: 'PUT',
@@ -117,11 +101,8 @@ async function run() {
             body: fs.createReadStream(apkFile),
         })
             .then(handleErrors)
-            .then((response) => {
+            .then(() => {
                 core.info('Successfully uploaded apk')
-            })
-            .catch((error) => {
-                core.setFailed(`Failed to upload apk due to ${error.message}`)
             })
     } catch (error) {
         core.setFailed(`[Error] There was an error with the action: ${error}`)
