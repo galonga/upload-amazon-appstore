@@ -29,7 +29,7 @@
   "homepage": "https://github.com/galonga/upload-amazon-appstore#readme",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "2.0.3",
+    "@actions/core": "3.0.1",
     "node-fetch": "3.3.2"
   },
   "devDependencies": {
